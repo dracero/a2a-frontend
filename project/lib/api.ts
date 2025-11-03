@@ -1,17 +1,8 @@
-const BASE_URL = 'http://localhost:12000';
+const BASE_URL = ''; // Lo hacemos relativo para que use el proxy de Next.js
 
-export interface Message {
-  message_id: string;
-  context_id: string;
-  sender: string;
-  recipient?: string;
-  parts: Part[];
-}
+// --- INICIO DE LA CORRECCIÓN ---
 
-export interface Part {
-  root: TextPart | FilePart;
-}
-
+// Estas son las partes reales
 export interface TextPart {
   kind: 'text';
   text: string;
@@ -25,6 +16,18 @@ export interface FilePart {
     bytes?: string;
   };
 }
+
+// 'Part' ya no es un objeto wrapper, es la unión de las partes.
+export type Part = TextPart | FilePart;
+
+export interface Message {
+  message_id: string;
+  context_id: string;
+  role: string;
+  recipient?: string;
+  parts: Part[]; // <-- Esto ahora es (TextPart | FilePart)[]
+}
+// --- FIN DE LA CORRECCIÓN ---
 
 export interface Conversation {
   conversation_id: string;
@@ -147,6 +150,7 @@ export class ChatAPI {
   }
 
   getFileUrl(fileId: string): string {
+    // Ahora es una URL relativa que el proxy manejará
     return `${this.baseUrl}/message/file/${fileId}`;
   }
 

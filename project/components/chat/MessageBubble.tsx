@@ -9,8 +9,6 @@ interface MessageBubbleProps {
 }
 
 export function MessageBubble({ message }: MessageBubbleProps) {
-  // --- CORRECCIÓN AQUÍ ---
-  // Cambiamos 'sender' por 'role' para coincidir con el backend
   const isUser = message.role === 'user';
 
   return (
@@ -41,11 +39,6 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             : 'bg-slate-100 text-slate-900 rounded-tl-sm'
         )}
       >
-        {/*
-          Esta comprobación es importante. Si 'parts' no existe o está vacío,
-          no intentará mapearlo, evitando errores si el backend envía un
-          mensaje sin partes (aunque no debería).
-        */}
         {message.parts?.map((part, index) => (
           <MessagePart key={index} part={part} isUser={isUser} />
         ))}
@@ -54,8 +47,17 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   );
 }
 
+// --- INICIO DE LA CORRECCIÓN ---
+// El tipo de 'part' ahora es 'Part', que es (TextPart | FilePart)
 function MessagePart({ part, isUser }: { part: Part; isUser: boolean }) {
-  const content = part.root;
+  // 'part' ya no tiene '.root'. 'part' ES el contenido.
+  const content = part;
+
+  // Añadimos un guard clause por si 'content' (part) es nulo o no tiene 'kind'
+  if (!content || typeof content.kind === 'undefined') {
+    return null;
+  }
+  // --- FIN DE LA CORRECCIÓN ---
 
   if (content.kind === 'text') {
     return (
