@@ -3,6 +3,7 @@
 import { Message, Part } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { User, Bot } from 'lucide-react';
+import Image from 'next/image';
 
 interface MessageBubbleProps {
   message: Message;
@@ -47,49 +48,78 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   );
 }
 
-// --- INICIO DE LA CORRECCIÓN ---
-// El tipo de 'part' ahora es 'Part', que es (TextPart | FilePart)
 function MessagePart({ part, isUser }: { part: Part; isUser: boolean }) {
-  // 'part' ya no tiene '.root'. 'part' ES el contenido.
-  const content = part;
-
-  // Añadimos un guard clause por si 'content' (part) es nulo o no tiene 'kind'
-  if (!content || typeof content.kind === 'undefined') {
+  // Guard clause
+  if (!part || typeof part.kind === 'undefined') {
     return null;
   }
-  // --- FIN DE LA CORRECCIÓN ---
 
-  if (content.kind === 'text') {
+  if (part.kind === 'text') {
     return (
       <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-        {content.text}
+        {part.text}
       </p>
     );
   }
 
-  if (content.kind === 'file') {
-    const isImage = content.file.mime_type?.startsWith('image/');
+  if (part.kind === 'file') {
+    const isImage = part.file.mime_type?.startsWith('image/');
 
     if (isImage) {
       let imageSrc = '';
-      if (content.file.uri) {
-        // Usamos una ruta relativa para que el proxy (en next.config.js) funcione
-        imageSrc = content.file.uri;
-      } else if (content.file.bytes) {
-        imageSrc = `data:${content.file.mime_type};base64,${content.file.bytes}`;
+      
+      if (part.file.uri) {
+        // ✅ CORRECCIÓN: Manejar URIs del backend correctamente
+        if (part.file.uri.startsWith('/message/file/')) {
+          // URI relativa del backend - usar directamente (el proxy lo manejará)
+          imageSrc = part.file.uri;
+        } else if (part.file.uri.startsWith('http://') || part.file.uri.startsWith('https://')) {
+          // URI absoluta externa
+          imageSrc = part.file.uri;
+        } else if (part.file.uri.startsWith('gs://')) {
+          // Google Storage - necesita conversión (esto depende de tu backend)
+          console.warn('GS URI no soportada directamente:', part.file.uri);
+          imageSrc = part.file.uri;
+        } else {
+          // Otra URI relativa
+          imageSrc = part.file.uri;
+        }
+      } else if (part.file.bytes) {
+        // Datos en base64
+        imageSrc = `data:${part.file.mime_type};base64,${part.file.bytes}`;
+      }
+
+      if (!imageSrc) {
+        return (
+          <div className="text-sm text-red-500">
+            Error: No se pudo cargar la imagen
+          </div>
+        );
       }
 
       return (
         <div className="rounded-lg overflow-hidden">
-          <img
+          <Image
             src={imageSrc}
             alt="Uploaded content"
+            width={400}
+            height={300}
             className="max-w-full h-auto max-h-96 object-contain"
+            style={{ width: 'auto', height: 'auto' }}
+            onError={(e) => {
+              console.error('Error loading image:', {
+                src: imageSrc,
+                mimeType: part.file.mime_type,
+                hasBytes: !!part.file.bytes,
+                hasUri: !!part.file.uri
+              });
+            }}
           />
         </div>
       );
     }
 
+    // Archivo no-imagen
     return (
       <div
         className={cn(
@@ -97,7 +127,17 @@ function MessagePart({ part, isUser }: { part: Part; isUser: boolean }) {
           isUser ? 'bg-blue-700' : 'bg-slate-200'
         )}
       >
-        File: {content.file.mime_type}
+        File: {part.file.mime_type}
+        {part.file.uri && (
+          <a 
+            href={part.file.uri} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="ml-2 underline"
+          >
+            Download
+          </a>
+        )}
       </div>
     );
   }

@@ -124,7 +124,7 @@ export function ConversationManager() {
                           <p className="text-xs text-slate-500 mt-1">
                             {msg.parts
                               ?.map((p) =>
-                                p.root.kind === 'text' ? p.root.text : 'File'
+                                p.root?.kind === 'text' ? p.root.text : 'File'
                               )
                               .join(' ')}
                           </p>

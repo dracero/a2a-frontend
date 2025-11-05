@@ -2,7 +2,7 @@ const BASE_URL = ''; // Lo hacemos relativo para que use el proxy de Next.js
 
 // --- INICIO DE LA CORRECCIÓN ---
 
-// Estas son las partes reales
+// Definición mejorada de las partes del mensaje
 export interface TextPart {
   kind: 'text';
   text: string;
@@ -12,20 +12,21 @@ export interface FilePart {
   kind: 'file';
   file: {
     mime_type: string;
-    uri?: string;
-    bytes?: string;
+    uri?: string;     // URL relativa (/message/file/...) o externa (http/https)
+    bytes?: string;   // Base64 puro sin prefijo data:image/...;base64,
   };
 }
 
-// 'Part' ya no es un objeto wrapper, es la unión de las partes.
+// Tipo unión para las partes del mensaje
 export type Part = TextPart | FilePart;
 
+// Interfaz principal del mensaje
 export interface Message {
   message_id: string;
   context_id: string;
-  role: string;
+  role: 'user' | 'assistant' | 'system';
   recipient?: string;
-  parts: Part[]; // <-- Esto ahora es (TextPart | FilePart)[]
+  parts: Part[];
 }
 // --- FIN DE LA CORRECCIÓN ---
 

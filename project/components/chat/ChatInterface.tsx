@@ -34,9 +34,22 @@ export function ChatInterface() {
   }, [messages]);
 
   useEffect(() => {
-    initializeChat(); // Inicia un nuevo chat por defecto
-    loadConversations(); // Carga las conversaciones existentes
+    let isMounted = true;
+    
+    const init = async () => {
+      if (!isMounted) return;
+      await loadConversations(); // Primero cargamos las conversaciones
+      
+      // Solo inicializamos chat si no hay conversaciones o si no hay conversación activa
+      if (!allConversations.length || !conversationId) {
+        await initializeChat();
+      }
+    };
+
+    init();
+
     return () => {
+      isMounted = false;
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
       }
@@ -62,7 +75,7 @@ export function ChatInterface() {
       const convId = await chatAPI.createConversation();
       setConversationId(convId);
       const msgs = await chatAPI.listMessages(convId);
-      setMessages(msgs);
+      setMessages(normalizeMessages(msgs));
       // Añadir la nueva conversación a la lista del dropdown
       setAllConversations((prev) => [
         { conversation_id: convId, messages: msgs },
@@ -85,15 +98,23 @@ export function ChatInterface() {
       if (!convId) return;
       try {
         const msgs = await chatAPI.listMessages(convId);
+        const normalized = normalizeMessages(msgs);
+        // DEBUG: log de mensajes normalizados para depuración
+        try {
+          console.debug('[chat] normalized messages:', normalized);
+        } catch (e) {
+          /* ignore */
+        }
+
         setMessages((prevMsgs) => {
-          if (JSON.stringify(prevMsgs) !== JSON.stringify(msgs)) {
+          if (JSON.stringify(prevMsgs) !== JSON.stringify(normalized)) {
             // Actualizar también la lista de conversaciones
             setAllConversations((prevConvs) =>
               prevConvs.map((conv) =>
-                conv.conversation_id === convId ? { ...conv, messages: msgs } : conv
+                conv.conversation_id === convId ? { ...conv, messages: normalized } : conv
               )
             );
-            return msgs;
+            return normalized;
           }
           return prevMsgs;
         });
@@ -112,29 +133,29 @@ export function ChatInterface() {
     setIsSending(true);
 
     try {
-      // --- INICIO DE LA CORRECCIÓN ---
-      // El tipo 'Part[]' ahora es (TextPart | FilePart)[] gracias a la corrección en lib/api.ts
       const parts: Part[] = [];
 
-      if (image) {
-        // Ya no envolvemos la parte en '{ root: ... }'
+      // Primero las imágenes (si hay)
+      if (image?.bytes) {
         parts.push({
           kind: 'file',
           file: {
             mime_type: image.mimeType,
-            bytes: image.bytes,
+            // Asegurarnos de que el base64 esté limpio
+            bytes: image.bytes.includes('base64,') 
+              ? image.bytes.split('base64,')[1] 
+              : image.bytes
           },
         });
       }
 
-      if (text) {
-        // Ya no envolvemos la parte en '{ root: ... }'
+      // Luego el texto (si hay)
+      if (text.trim()) {
         parts.push({
           kind: 'text',
-          text: text,
+          text: text.trim(),
         });
       }
-      // --- FIN DE LA CORRECCIÓN ---
 
       const message: Message = {
         message_id: crypto.randomUUID(),
@@ -142,6 +163,13 @@ export function ChatInterface() {
         role: 'user',
         parts: parts,
       };
+
+      // DEBUG: mostrar el payload que se va a enviar al backend
+      try {
+        console.debug('[chat] sending message payload:', message);
+      } catch (e) {
+        /* ignore */
+      }
 
       setMessages((prevMsgs) => [...(prevMsgs || []), message]);
       await chatAPI.sendMessage(message);
@@ -185,9 +213,40 @@ export function ChatInterface() {
     const selectedConv = allConversations.find(
       (c) => c.conversation_id === convId
     );
-    setMessages(selectedConv?.messages || []);
+    setMessages(normalizeMessages(selectedConv?.messages || []));
     startPolling(convId);
   };
+
+  // Normaliza mensajes entrantes para tolerar distintas formas del backend
+  function normalizeMessages(msgs: Message[] | undefined): Message[] {
+    if (!msgs) return [];
+    return msgs.map((m) => ({ ...m, parts: (m.parts || []).map(normalizePart) }));
+  }
+
+  function normalizePart(p: any): Part {
+    if (!p) return p;
+
+    // Si ya está en la forma esperada, devolver tal cual
+    if (p.kind === 'text' || p.kind === 'file') return p as Part;
+
+    // Si está envuelto en 'root'
+    if (p.root) {
+      // root puede contener 'file' o 'text'
+      if (p.root.file) return { kind: 'file', file: p.root.file } as Part;
+      if (p.root.text) return { kind: 'text', text: p.root.text } as Part;
+      // si root ya es el file
+      if (p.root.mime_type || p.root.bytes || p.root.uri) return { kind: 'file', file: p.root } as Part;
+    }
+
+    // Si tiene 'file' pero sin 'kind'
+    if (p.file) return { kind: 'file', file: p.file } as Part;
+
+    // Si tiene 'text' en otro sitio
+    if (p.text) return { kind: 'text', text: p.text } as Part;
+
+    // Fallback conservador: devolver como texto con stringify
+    return { kind: 'text', text: JSON.stringify(p) } as Part;
+  }
 
   if (isLoading) {
     return (

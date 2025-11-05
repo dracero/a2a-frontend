@@ -1,40 +1,57 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // output: 'export', // <-- ELIMINADO: Conflicta con el proxy de API.
-  eslint: {
-    ignoreDuringBuilds: true,
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '12000',
+        pathname: '/message/file/**',
+      },
+    ],
   },
-  images: { unoptimized: true },
-
-  // AÑADIDO: Proxy para redirigir las llamadas de API al backend de FastAPI
   async rewrites() {
-    const BACKEND_URL = 'http://localhost:12000';
     return [
       {
         source: '/conversation/:path*',
-        destination: `${BACKEND_URL}/conversation/:path*`,
+        destination: 'http://localhost:12000/conversation/:path*',
       },
       {
         source: '/message/:path*',
-        destination: `${BACKEND_URL}/message/:path*`,
+        destination: 'http://localhost:12000/message/:path*',
+      },
+      {
+        // Configuración específica para archivos
+        source: '/message/file/:id',
+        destination: 'http://localhost:12000/message/file/:id',
       },
       {
         source: '/events/:path*',
-        destination: `${BACKEND_URL}/events/:path*`,
+        destination: 'http://localhost:12000/events/:path*',
       },
       {
         source: '/task/:path*',
-        destination: `${BACKEND_URL}/task/:path*`,
+        destination: 'http://localhost:12000/task/:path*',
       },
       {
         source: '/agent/:path*',
-        destination: `${BACKEND_URL}/agent/:path*`,
+        destination: 'http://localhost:12000/agent/:path*',
       },
       {
         source: '/api_key/:path*',
-        destination: `${BACKEND_URL}/api_key/:path*`,
+        destination: 'http://localhost:12000/api_key/:path*',
       },
     ];
+  },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '12000',
+        pathname: '/message/file/**',
+      },
+    ],
   },
 };
 

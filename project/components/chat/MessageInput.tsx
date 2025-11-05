@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, Image as ImageIcon, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 interface MessageInputProps {
   onSend: (text: string, image?: { bytes: string; mimeType: string }) => void;
@@ -50,11 +51,15 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64 = reader.result as string;
-      const base64Data = base64.split(',')[1];
+      // Asegurarnos de que solo enviamos el base64 puro sin el prefijo
+      const base64Data = base64.includes('base64,') 
+        ? base64.split('base64,')[1]
+        : base64;
+      
       setImage({
         bytes: base64Data,
         mimeType: file.type,
-        preview: base64,
+        preview: base64, // Mantenemos el prefijo para la vista previa
       });
     };
     reader.readAsDataURL(file);
@@ -68,14 +73,19 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
     <div className="border-t bg-white p-4">
       {image && (
         <div className="mb-3 relative inline-block">
-          <img
+          <Image
             src={image.preview}
-            alt="Preview"
+            alt="Preview of uploaded image"
+            width={80}
+            height={80}
             className="h-20 w-20 object-cover rounded-lg border-2 border-slate-200"
+            unoptimized={true}
           />
           <button
             onClick={() => setImage(null)}
             className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+            title="Remove image"
+            aria-label="Remove uploaded image"
           >
             <X className="h-3 w-3" />
           </button>
@@ -89,6 +99,8 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
           accept="image/*"
           onChange={handleImageSelect}
           className="hidden"
+          title="Upload image"
+          aria-label="Upload image"
         />
 
         <Button
