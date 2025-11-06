@@ -94,9 +94,20 @@ export class ChatAPI {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ params: conversationId }),
+      body: JSON.stringify({ params: conversationId })
     });
+    console.log('Response status:', response);
+    if (!response.ok) {
+      console.error('Error en listMessages:', await response.text());
+      throw new Error(`Error al listar mensajes: ${response.status}`);
+    }
     const data = await response.json();
+    console.log('Respuesta de listMessages:', data);
+    if (!data.result) {
+      console.error('La respuesta no tiene el campo result:', data);
+      throw new Error('Respuesta inválida del servidor');
+    }
+    console.log(data)
     return data.result;
   }
 

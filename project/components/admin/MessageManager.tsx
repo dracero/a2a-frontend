@@ -85,7 +85,7 @@ export function MessageManager() {
                         {msg.sender}
                       </p>
                       <p className="text-xs text-slate-500">
-                        Context: {msg.context_id.slice(0, 12)}...
+                        Context: {msg.context_id ? `${msg.context_id.slice(0, 12)}...` : '—'}
                       </p>
                     </div>
                     <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs rounded-full font-medium">
@@ -118,22 +118,25 @@ export function MessageManager() {
                       Parts:
                     </p>
                     <div className="space-y-2">
-                      {msg.parts?.map((part, idx) => (
-                        <div
-                          key={idx}
-                          className="p-2 rounded bg-slate-50 border border-slate-200"
-                        >
-                          {part.root.kind === 'text' ? (
-                            <p className="text-xs text-slate-600">
-                              {part.root.text}
-                            </p>
-                          ) : (
-                            <p className="text-xs text-slate-500">
-                              File: {part.root.file.mime_type}
-                            </p>
-                          )}
-                        </div>
-                      ))}
+                      {msg.parts?.map((part, idx) => {
+                        const root: any = (part as any)?.root ?? part;
+                        return (
+                          <div
+                            key={idx}
+                            className="p-2 rounded bg-slate-50 border border-slate-200"
+                          >
+                            {root?.kind === 'text' ? (
+                              <p className="text-xs text-slate-600">
+                                {root?.text}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-slate-500">
+                                File: {root?.file?.mime_type || 'unknown'}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

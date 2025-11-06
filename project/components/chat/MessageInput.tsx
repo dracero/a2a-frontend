@@ -24,6 +24,16 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
   const handleSend = () => {
     if ((!message.trim() && !image) || disabled) return;
 
+    console.log('📤 MessageInput sending:', {
+      hasText: !!message.trim(),
+      hasImage: !!image,
+      image: image ? {
+        mimeType: image.mimeType,
+        bytesLength: image.bytes.length,
+        bytesPreview: image.bytes.substring(0, 50) + '...'
+      } : null
+    });
+
     onSend(
       message.trim(),
       image ? { bytes: image.bytes, mimeType: image.mimeType } : undefined
@@ -43,6 +53,12 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    console.log('📷 Image selected:', {
+      name: file.name,
+      type: file.type,
+      size: file.size
+    });
+
     if (!file.type.startsWith('image/')) {
       alert('Please select an image file');
       return;
@@ -56,12 +72,25 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
         ? base64.split('base64,')[1]
         : base64;
       
+      console.log('✅ Image processed:', {
+        mimeType: file.type,
+        base64Length: base64Data.length,
+        base64Preview: base64Data.substring(0, 50) + '...',
+        previewLength: base64.length
+      });
+
       setImage({
         bytes: base64Data,
         mimeType: file.type,
         preview: base64, // Mantenemos el prefijo para la vista previa
       });
     };
+    
+    reader.onerror = (error) => {
+      console.error('❌ Error reading file:', error);
+      alert('Error reading file. Please try again.');
+    };
+    
     reader.readAsDataURL(file);
 
     if (fileInputRef.current) {
@@ -73,22 +102,28 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
     <div className="border-t bg-white p-4">
       {image && (
         <div className="mb-3 relative inline-block">
-          <Image
-            src={image.preview}
-            alt="Preview of uploaded image"
-            width={80}
-            height={80}
-            className="h-20 w-20 object-cover rounded-lg border-2 border-slate-200"
-            unoptimized={true}
-          />
-          <button
-            onClick={() => setImage(null)}
-            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
-            title="Remove image"
-            aria-label="Remove uploaded image"
-          >
-            <X className="h-3 w-3" />
-          </button>
+          <div className="relative">
+            <Image
+              src={image.preview}
+              alt="Preview of uploaded image"
+              width={80}
+              height={80}
+              className="h-20 w-20 object-cover rounded-lg border-2 border-slate-200"
+              unoptimized={true}
+            />
+            <button
+              onClick={() => {
+                console.log('🗑️ Removing image');
+                setImage(null);
+              }}
+              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+              title="Remove image"
+              aria-label="Remove uploaded image"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">{image.mimeType}</p>
         </div>
       )}
 
